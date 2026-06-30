@@ -21,8 +21,6 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { api, Arbitrage, Currency, League, TradeStep } from "@/src/api";
 import { theme } from "@/src/theme";
 
-type Tab = "direct" | "multi";
-
 export default function Index() {
   const insets = useSafeAreaInsets();
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -34,12 +32,10 @@ export default function Index() {
   const [preset, setPreset] = useState<"conservative" | "balanced" | "aggressive">(
     "balanced"
   );
-  const [tab, setTab] = useState<Tab>("multi");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [direct, setDirect] = useState<Arbitrage[]>([]);
-  const [multi, setMulti] = useState<Arbitrage[]>([]);
+  const [opportunities, setOpportunities] = useState<Arbitrage[]>([]);
   const [pickLeagueOpen, setPickLeagueOpen] = useState(false);
   const [pickBaseOpen, setPickBaseOpen] = useState(false);
   const [detail, setDetail] = useState<Arbitrage | null>(null);
@@ -91,8 +87,8 @@ export default function Index() {
           max_hops: maxHops,
           ...presetParams,
         });
-        setDirect(res.direct);
-        setMulti(res.multi_hop);
+        // multi_hop contains 3-4 hop cycles; direct is always empty by design
+        setOpportunities(res.multi_hop);
       } catch (e: any) {
         setError(e.message ?? "Failed to find arbitrage");
       } finally {
@@ -108,7 +104,7 @@ export default function Index() {
     runArbitrage({ silent: true });
   }, [runArbitrage]);
 
-  const items = tab === "direct" ? direct : multi;
+  const items = opportunities;
   const currencyMap = useMemo(() => {
     const m = new Map<string, Currency>();
     currencies.forEach((c) => m.set(c.api_id, c));
@@ -130,7 +126,7 @@ export default function Index() {
         <FlatList
           testID="arbitrage-list"
           data={items}
-          keyExtractor={(_, i) => `${tab}-${i}`}
+          keyExtractor={(_, i) => `opp-${i}`}
           contentContainerStyle={{
             paddingBottom: insets.bottom + theme.spacing.xl,
           }}
@@ -157,7 +153,7 @@ export default function Index() {
                 onSearch={() => runArbitrage()}
                 loading={loading}
               />
-              <TabBar tab={tab} onTab={setTab} directCount={direct.length} multiCount={multi.length} />
+              <ResultsHeader count={opportunities.length} />
               {error && (
                 <View style={styles.errorBox} testID="error-box">
                   <Ionicons name="warning" size={16} color={theme.colors.crimsonGlow} />
@@ -408,39 +404,16 @@ function ControlPanel({
   );
 }
 
-// ---------------- Tab Bar ----------------
-function TabBar({
-  tab,
-  onTab,
-  directCount,
-  multiCount,
-}: {
-  tab: Tab;
-  onTab: (t: Tab) => void;
-  directCount: number;
-  multiCount: number;
-}) {
-  const Item = ({ id, label, count }: { id: Tab; label: string; count: number }) => {
-    const active = tab === id;
-    return (
-      <Pressable
-        testID={`tab-${id}`}
-        onPress={() => onTab(id)}
-        style={[styles.tabItem, active && styles.tabItemActive]}
-      >
-        <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-        <View style={[styles.tabBadge, active && styles.tabBadgeActive]}>
-          <Text style={[styles.tabBadgeText, active && styles.tabBadgeTextActive]}>
-            {count}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
+// ---------------- Results Header ----------------
+function ResultsHeader({ count }: { count: number }) {
+  if (count === 0) return null;
   return (
-    <View style={styles.tabBar}>
-      <Item id="multi" label="Multi-Hop" count={multiCount} />
-      <Item id="direct" label="Direct Pairs" count={directCount} />
+    <View style={styles.resultsHeader} testID="results-header">
+      <MaterialCommunityIcons name="lightning-bolt" size={14} color={theme.colors.gold} />
+      <Text style={styles.resultsHeaderText}>
+        {count} opportunit{count === 1 ? "y" : "ies"} found
+      </Text>
+      <Text style={styles.resultsHeaderHint}>· sorted by profit %</Text>
     </View>
   );
 }
@@ -894,6 +867,25 @@ const styles = StyleSheet.create({
   tabBadgeActive: { backgroundColor: theme.colors.gold },
   tabBadgeText: { color: theme.colors.textDim, fontSize: theme.font.micro, fontWeight: "700" },
   tabBadgeTextActive: { color: "#1a0a0a" },
+
+  resultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    marginBottom: 4,
+    gap: 6,
+  },
+  resultsHeaderText: {
+    color: theme.colors.text,
+    fontSize: theme.font.small,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  resultsHeaderHint: {
+    color: theme.colors.textDim,
+    fontSize: theme.font.micro,
+  },
 
   errorBox: {
     flexDirection: "row",
