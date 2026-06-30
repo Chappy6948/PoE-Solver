@@ -20,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { api, Arbitrage, Currency, League, TradeStep } from "@/src/api";
 import { theme } from "@/src/theme";
+import PairHistoryChart from "@/src/components/PairHistoryChart";
 
 export default function Index() {
   const insets = useSafeAreaInsets();
@@ -39,6 +40,7 @@ export default function Index() {
   const [pickLeagueOpen, setPickLeagueOpen] = useState(false);
   const [pickBaseOpen, setPickBaseOpen] = useState(false);
   const [detail, setDetail] = useState<Arbitrage | null>(null);
+  const [chartStep, setChartStep] = useState<TradeStep | null>(null);
 
   // 1. Load leagues, default to current
   useEffect(() => {
@@ -216,7 +218,23 @@ export default function Index() {
           setPickBaseOpen(false);
         }}
       />
-      <DetailModal opp={detail} onClose={() => setDetail(null)} base={baseCurrency} />
+      <DetailModal
+        opp={detail}
+        onClose={() => setDetail(null)}
+        base={baseCurrency}
+        onOpenChart={(s) => setChartStep(s)}
+      />
+      <PairHistoryChart
+        open={!!chartStep && !!league}
+        onClose={() => setChartStep(null)}
+        league={league ?? ""}
+        c1Id={chartStep?.from_item_id ?? 0}
+        c2Id={chartStep?.to_item_id ?? 0}
+        c1Name={chartStep?.from_currency ?? ""}
+        c2Name={chartStep?.to_currency ?? ""}
+        c1Icon={chartStep?.from_icon ?? undefined}
+        c2Icon={chartStep?.to_icon ?? undefined}
+      />
     </View>
   );
 }
@@ -492,10 +510,12 @@ function DetailModal({
   opp,
   onClose,
   base,
+  onOpenChart,
 }: {
   opp: Arbitrage | null;
   onClose: () => void;
   base?: Currency;
+  onOpenChart: (s: TradeStep) => void;
 }) {
   return (
     <Modal
@@ -546,7 +566,7 @@ function DetailModal({
 
                 <Text style={styles.stepsHeader}>STEP-BY-STEP</Text>
                 {opp.steps.map((s, i) => (
-                  <Step key={i} step={s} idx={i} />
+                  <Step key={i} step={s} idx={i} onOpenChart={() => onOpenChart(s)} />
                 ))}
 
                 <View style={styles.warnBox}>
@@ -565,7 +585,16 @@ function DetailModal({
   );
 }
 
-function Step({ step, idx }: { step: TradeStep; idx: number }) {
+function Step({
+  step,
+  idx,
+  onOpenChart,
+}: {
+  step: TradeStep;
+  idx: number;
+  onOpenChart: () => void;
+}) {
+  const canChart = !!step.from_item_id && !!step.to_item_id;
   return (
     <View style={styles.stepCard} testID={`step-${idx + 1}`}>
       <View style={styles.stepNum}>
@@ -584,6 +613,21 @@ function Step({ step, idx }: { step: TradeStep; idx: number }) {
         <View style={styles.arrowRow}>
           <Ionicons name="arrow-down" size={14} color={theme.colors.gold} />
           <Text style={styles.rateText}>1 = {step.rate.toFixed(4)}</Text>
+          {canChart && (
+            <Pressable
+              testID={`step-chart-${idx + 1}`}
+              onPress={onOpenChart}
+              hitSlop={8}
+              style={styles.chartBtn}
+            >
+              <MaterialCommunityIcons
+                name="chart-line-variant"
+                size={12}
+                color={theme.colors.gold}
+              />
+              <Text style={styles.chartBtnText}>History</Text>
+            </Pressable>
+          )}
         </View>
         <View style={styles.stepRow}>
           {step.to_icon && (
@@ -1068,6 +1112,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   rateText: { color: theme.colors.textDim, fontSize: theme.font.small },
+
+  chartBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: "auto",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.borderGold,
+    backgroundColor: "#2a1d0a",
+  },
+  chartBtnText: {
+    color: theme.colors.gold,
+    fontWeight: "700",
+    fontSize: theme.font.micro,
+    letterSpacing: 0.5,
+  },
 
   warnBox: {
     flexDirection: "row",

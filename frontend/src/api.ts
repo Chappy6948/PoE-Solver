@@ -19,6 +19,8 @@ export type TradeStep = {
   to_currency: string;
   from_icon?: string | null;
   to_icon?: string | null;
+  from_item_id?: number | null;
+  to_item_id?: number | null;
   rate: number;
   qty_in: number;
   qty_out: number;
@@ -42,6 +44,27 @@ export type ArbitrageResponse = {
   budget: number;
   direct: Arbitrage[];
   multi_hop: Arbitrage[];
+};
+
+export type HistoryPoint = {
+  epoch: number;
+  rate: number;
+  inverse_rate: number;
+  volume: number;
+  c1_stock: number;
+  c2_stock: number;
+};
+
+export type HistoryResponse = {
+  league: string;
+  c1_item_id: number;
+  c2_item_id: number;
+  points: HistoryPoint[];
+  high: number;
+  low: number;
+  avg: number;
+  latest: number;
+  change_pct: number;
 };
 
 async function getJSON<T>(path: string): Promise<T> {
@@ -76,5 +99,19 @@ export const api = {
       min_stock: String(params.min_stock ?? 300),
     });
     return getJSON<ArbitrageResponse>(`/api/arbitrage?${q.toString()}`);
+  },
+  history: (params: {
+    league: string;
+    c1_id: number;
+    c2_id: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams({
+      league: params.league,
+      c1_id: String(params.c1_id),
+      c2_id: String(params.c2_id),
+      limit: String(params.limit ?? 168),
+    });
+    return getJSON<HistoryResponse>(`/api/pair-history?${q.toString()}`);
   },
 };

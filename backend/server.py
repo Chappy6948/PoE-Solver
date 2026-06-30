@@ -61,6 +61,7 @@ class CurrencyOut(BaseModel):
     text: str
     category: str
     icon_url: Optional[str] = None
+    item_id: Optional[int] = None
 
 
 class PairOut(BaseModel):
@@ -79,6 +80,8 @@ class TradeStep(BaseModel):
     to_currency: str
     from_icon: Optional[str] = None
     to_icon: Optional[str] = None
+    from_item_id: Optional[int] = None
+    to_item_id: Optional[int] = None
     rate: float  # how many to_currency per 1 from_currency
     qty_in: float
     qty_out: float
@@ -151,11 +154,13 @@ def _normalize_pair(raw: dict) -> Optional[PairOut]:
             api_id=c1["ApiId"], text=c1["Text"],
             category=c1.get("CategoryApiId", ""),
             icon_url=c1.get("IconUrl"),
+            item_id=c1.get("ItemId"),
         ),
         c2=CurrencyOut(
             api_id=c2["ApiId"], text=c2["Text"],
             category=c2.get("CategoryApiId", ""),
             icon_url=c2.get("IconUrl"),
+            item_id=c2.get("ItemId"),
         ),
         rate_c1_to_c2=rate1,
         rate_c2_to_c1=rate2,
@@ -272,6 +277,8 @@ def _find_arbitrage(
                                 to_currency=meta_i.text,
                                 from_icon=prev_meta.icon_url,
                                 to_icon=meta_i.icon_url,
+                                from_item_id=prev_meta.item_id,
+                                to_item_id=meta_i.item_id,
                                 rate=rate_i,
                                 qty_in=round(adj_qtys[i], 4),
                                 qty_out=round(adj_qtys[i + 1], 4),
@@ -391,12 +398,99 @@ async def list_currencies(league: str = Query(...)):
                     api_id=c["ApiId"], text=c["Text"],
                     category=c.get("CategoryApiId", ""),
                     icon_url=c.get("IconUrl"),
+                    item_id=c.get("ItemId"),
                 )
     items = list(seen.values())
     # Keep popular base currencies on top
     priority = ["exalted", "divine", "chaos", "annulment", "vaal", "gcp"]
     items.sort(key=lambda c: (priority.index(c.api_id) if c.api_id in priority else 999, c.text))
     return items
+
+
+class HistoryPoint(BaseModel):
+    epoch: int
+    rate: float  # 1 c1 -> rate c2
+    inverse_rate: float  # 1 c2 -> inverse_rate c1
+    volume: float
+    c1_stock: int
+    c2_stock: int
+
+
+class HistoryOut(BaseModel):
+    league: str
+    c1_item_id: int
+    c2_item_id: int
+    points: List[HistoryPoint]
+    high: float
+    low: float
+    avg: float
+    latest: float
+    change_pct: float  # % change over the returned window
+
+
+@api_router.get("/pair-history", response_model=HistoryOut)
+async def get_pair_history(
+    league: str = Query(...),
+    c1_id: int = Query(..., description="CurrencyOne ItemId"),
+    c2_id: int = Query(..., description="CurrencyTwo ItemId"),
+    limit: int = Query(168, ge=1, le=720, description="Hourly points (max 30 days)"),
+):
+    encoded = league.replace(" ", "%20")
+    url = (
+        f"{POE2_API}/poe2/Leagues/{encoded}/Currencies/Pairs/"
+        f"{c1_id}/{c2_id}/History?Limit={limit}"
+    )
+    try:
+        data = await cached_fetch(url, ttl=600)
+    except httpx.HTTPStatusError as e:
+        # poe2scout returns 404 if the pair has no history rows
+        if e.response is not None and e.response.status_code == 404:
+            return HistoryOut(
+                league=league, c1_item_id=c1_id, c2_item_id=c2_id,
+                points=[], high=0, low=0, avg=0, latest=0, change_pct=0,
+            )
+        raise HTTPException(status_code=502, detail=f"upstream error: {e}")
+
+    raw = data.get("History", []) if isinstance(data, dict) else data
+    points: List[HistoryPoint] = []
+    rates: List[float] = []
+    for entry in raw:
+        epoch = int(entry.get("Epoch", 0))
+        d = entry.get("Data", entry)
+        d1 = d.get("CurrencyOneData", {})
+        d2 = d.get("CurrencyTwoData", {})
+        p1 = _f(d1.get("RelativePrice"))
+        p2 = _f(d2.get("RelativePrice"))
+        if p1 <= 0 or p2 <= 0:
+            continue
+        rate = p1 / p2
+        inv = p2 / p1
+        rates.append(rate)
+        points.append(HistoryPoint(
+            epoch=epoch, rate=rate, inverse_rate=inv,
+            volume=_f(d1.get("ValueTraded")) + _f(d2.get("ValueTraded")),
+            c1_stock=int(d1.get("HighestStock") or 0),
+            c2_stock=int(d2.get("HighestStock") or 0),
+        ))
+    # Sort oldest -> newest for chart rendering
+    points.sort(key=lambda p: p.epoch)
+    if not points:
+        return HistoryOut(
+            league=league, c1_item_id=c1_id, c2_item_id=c2_id,
+            points=[], high=0, low=0, avg=0, latest=0, change_pct=0,
+        )
+    rates_sorted = [p.rate for p in points]
+    high = max(rates_sorted)
+    low = min(rates_sorted)
+    avg = sum(rates_sorted) / len(rates_sorted)
+    latest = rates_sorted[-1]
+    first = rates_sorted[0]
+    change_pct = ((latest / first) - 1.0) * 100 if first > 0 else 0.0
+    return HistoryOut(
+        league=league, c1_item_id=c1_id, c2_item_id=c2_id,
+        points=points, high=high, low=low, avg=avg,
+        latest=latest, change_pct=change_pct,
+    )
 
 
 app.include_router(api_router)

@@ -1,0 +1,53 @@
+{
+  "summary": "Backend-only testing of the newly added /api/pair-history endpoint and the new from_item_id/to_item_id fields on /api/arbitrage TradeSteps. Created /app/backend/tests/test_pair_history.py with 14 new tests covering response shape, point schema, ascending epoch sort, aggregate correctness (high/low/avg/latest/change_pct), limit boundary validation (limit<1 -> 422, limit=720 -> 200, limit=721 -> 422), missing-required-param validation, graceful upstream-404 -> 200 empty points, and arbitrage step item id integers. All 14 new tests pass and the full regression suite (36/36) is green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/pair-history",
+        "issue": "On non-404 upstream HTTP errors (e.g. 500/502) the endpoint raises HTTPException(502) but the original httpx.HTTPStatusError stays in `detail` which leaks the full upstream URL. Consider scrubbing the message or returning a generic 'upstream unavailable'."
+      },
+      {
+        "endpoint": "GET /api/pair-history",
+        "issue": "Volume is computed as d1.ValueTraded + d2.ValueTraded. If upstream uses different keys (e.g. 'Volume'), this silently returns 0. Worth confirming the upstream schema against poe2scout docs or normalising via a small adapter."
+      },
+      {
+        "endpoint": "GET /api/pair-history",
+        "issue": "When called with same c1_id and c2_id, upstream returns identical sides and rate==1 across all points; backend returns change_pct=0 but the chart is meaningless. Consider returning 400 for c1_id==c2_id."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/test_arbitrage_api.py",
+    "/app/backend/tests/test_pair_history.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pair_history_results.xml"
+  ],
+  "action_items": [
+    "Optional: hide upstream URL from the 502 detail string on /api/pair-history failures.",
+    "Optional: short-circuit /api/pair-history with 400 when c1_id == c2_id.",
+    "Optional: add a thin Pydantic model for upstream history entries so schema drift is caught at parse time instead of silently producing volume=0."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now ~510 lines and still single-file; approaching the 700-line split threshold but acceptable for now.",
+    "Cache key for /pair-history embeds Limit in the URL, so calls with different limits create independent cache entries (correct, no cross-talk).",
+    "_cache and _locks remain unbounded in-process dicts — note for scale-out; not a blocker.",
+    "HistoryPoint/HistoryOut models are good; consider also exposing 'count' (len(points)) so the UI does not need to compute it."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pair_history.py (new, 14 tests)"
+  ],
+  "success_rate": {"backend": "100% (36/36 incl. 14 new)", "frontend": "not tested"},
+  "seed_data_creation": "None — endpoints proxy poe2scout public API.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Item IDs used in tests: exalted=290, divine=291, chaos=287. Tests rely on poe2scout.com being reachable from the preview environment (confirmed). The graceful-404 test uses item ids 99999991/99999992 which trigger an upstream 404 that backend converts to a 200 with empty points; if upstream behaviour changes, update test_bad_pair_ids_returns_200_empty. Arbitrage step item id assertions skip when no multi_hop opps are available — re-check live market data first before flagging regressions.",
+  "rca_of_issue": "N/A — feature works as specified."
+}
