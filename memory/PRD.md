@@ -44,3 +44,9 @@ Help Path of Exile 2 players spot profitable currency-exchange arbitrage cycles 
 
 ## Smart Business Enhancement (Next)
 - Add a "Save cycle" feature backed by MongoDB so players can star their favourite arbitrage paths and get a quick "Re-scan favourites" button — drives daily engagement and could power a premium "alerts when this cycle exceeds X%" subscription.
+
+## Pair History Charts (v1.1)
+- New endpoint `GET /api/pair-history?league=&c1_id=&c2_id=&limit=` proxies poe2scout's `/Currencies/Pairs/{c1}/{c2}/History` and returns normalized hourly points: `{epoch, rate, inverse_rate, volume, c1_stock, c2_stock}` plus `{high, low, avg, latest, change_pct}`.
+- `TradeStep` now exposes `from_item_id` / `to_item_id` so the UI can request history for any leg of an arbitrage cycle.
+- New component `/app/frontend/src/components/PairHistoryChart.tsx` renders an `react-native-svg` line + area chart with 24h / 7d / 30d range chips and stat cells (Latest, Change, High, Low).
+- Each step in the opportunity detail modal has a "History" pill that opens the chart for that pair.
