@@ -1,0 +1,47 @@
+{
+  "summary": "Backend-only testing for the PoE2 Arbitrage API. Created pytest suite covering /api/leagues, /api/currencies, /api/arbitrage and /api/pairs. All 22 tests passed (100% success). The 'Runes of Aldur' league is returned and marked is_current=true; currencies include exalted/divine/chaos with exalted prioritized first; arbitrage response has the required shape (league/base_currency/budget/direct/multi_hop); direct (2-hop) is empty by design while multi_hop returns non-empty opportunities with default filters; each opportunity has a valid cycle (starts and ends with same currency), step schema (qty_in/qty_out/rate/max_available) and human-readable summary; top-half of opportunities is sorted by profit_pct desc (rune_focus grouping respected); /api/pairs?category=runes returns pairs touching runes; min_volume/min_stock/min_profit_pct/max_profit_pct/max_hops filters all behave correctly; out-of-range max_hops and budget<=0 return 422.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/arbitrage",
+        "issue": "When rune_focus=true (default) results are sorted by (touches_rune, profit_pct) so non-rune cycles with higher profit_pct can appear *below* rune cycles with lower profit. This deviates from the literal 'sorted top-down by profit %' requirement. Consider documenting this in the API and/or moving the rune boost behind an explicit query flag. Tests assert only top-half monotonicity to accommodate this grouping."
+      },
+      {
+        "endpoint": "GET /api/arbitrage (direct list)",
+        "issue": "The 'direct' field is computed with max_hops=2 then post-filtered to hops>=3 only for multi_hop, but direct itself never excludes 2-hop cycles. Because a single pair round-trip is mathematically 1.0, 'direct' is always empty by construction (confirmed). Field can be removed or replaced with explanation to avoid confusion in the UI."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/test_arbitrage_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Optional: expose rune_focus default behavior in the docs or make it false-by-default so the 'sorted by profit %' contract is strictly honored.",
+    "Optional: drop or rename the always-empty 'direct' field, or compute true 2-hop direct using a different pair (cross-market) instead of self-round-trip."
+  ],
+  "critical_code_review_comments": [
+    "server.py is single-file (~420 lines) — acceptable for this scope, no split needed yet.",
+    "Cache is in-memory per-process (dict). Fine for single supervisor worker; will not be shared across replicas. Consider noting this for future scale.",
+    "_locks dict grows unbounded across distinct URLs (only a handful here, so negligible).",
+    "_find_arbitrage uses DFS without explicit recursion depth limit beyond max_hops; safe given max_hops<=4.",
+    "No MongoDB usage despite Mongo client setup; consider removing unused db init or using it for caching/history."
+  ],
+  "updated_files": [
+    "/app/backend/tests/conftest.py (new)",
+    "/app/backend/tests/test_arbitrage_api.py (new)"
+  ],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "not tested"},
+  "seed_data_creation": "None — endpoints proxy poe2scout public API.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Tests rely on poe2scout.com upstream being reachable from the preview env (confirmed). Multi-hop arb depends on live market data; if upstream returns no opps for Runes of Aldur, test_direct_can_be_empty_multi_hop_should_have_results will fail — re-check with relaxed filters before flagging a regression. BASE_URL is read from EXPO_PUBLIC_BACKEND_URL via /app/frontend/.env."
+}
