@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.poesolver.runetrader",
       "supportsTablet": true
     },
     "android": {
