@@ -3,10 +3,17 @@
           "preview": {
                 "android": {
                         "buildType": "apk"
-                              }
-                                  },
-                                      "production": {
-                                            "android": {}
-                                                }
+                              },
+                                    "env": {
+                                            "EXPO_PUBLIC_BACKEND_URL": "https://poe-solver.onrender.com"
                                                   }
-                                                  }
+                                                      },
+                                                          "production": {
+                                                                "android": {},
+                                                                      "env": {
+                                                                              "EXPO_PUBLIC_BACKEND_URL": "https://poe-solver.onrender.com"
+                                                                                    }
+                                                                                        }
+                                                                                          }
+                                                                                          }
+}
