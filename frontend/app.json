@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "rune-trader",
-    "slug": "rune-trader",
+    "name": "Rune-Exchange",
+    "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,10 +10,15 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.poesolver.runetrader",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "permissions": ["INTERNET"],
+      "permissions": [
+        "INTERNET"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
