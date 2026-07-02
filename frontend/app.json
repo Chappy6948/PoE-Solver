@@ -3,6 +3,15 @@
     "name": "Rune-Exchange",
     "slug": "frontend",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/a5e73213-10c6-490e-8180-8fe2df3244c6"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
@@ -14,22 +23,18 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
-            "runtimeVersion": {
-                "policy": "appVersion"
-                  },
-                    "updates": {
-                        "enabled": true,                            "checkAutomatically": "ON_LOAD",                                "fallbackToCacheTimeout": 0
     },
     "android": {
+      "package": "com.poesolver.frontend",
       "permissions": [
+        "INTERNET",
         "INTERNET"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.poesolver.frontend"
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",

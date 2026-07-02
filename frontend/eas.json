@@ -1,18 +1,20 @@
 {
-      "build": {
-          "preview": {
-                "android": {
-                        "buildType": "apk"
-                              },
-                                    "env": {
-                                            "EXPO_PUBLIC_BACKEND_URL": "https://poe-solver.onrender.com"
-                                                  }
-                                                      },
-                                                          "production": {
-                                                                "android": {},
-                                                                      "env": {
-                                                                              "EXPO_PUBLIC_BACKEND_URL": "https://poe-solver.onrender.com"
-                                                                                    }
-                                                                                        }
-                                                                                          }
-                                                                                          }
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://poe-solver.onrender.com"
+      },
+      "channel": "preview"
+    },
+    "production": {
+      "android": {},
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://poe-solver.onrender.com"
+      },
+      "channel": "production"
+    }
+  }
+}
