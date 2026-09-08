@@ -1,4 +1,4 @@
-# PRD — RuneTrader: PoE 2 Arbitrage Mobile App
+# PRD — Profit Oracle: PoE 2 Arbitrage Mobile App
 
 ## Goal
 Help Path of Exile 2 players spot profitable currency-exchange arbitrage cycles using live data from poe2scout.com (focus on the rune exchange).
